@@ -22,6 +22,7 @@ import socialMediaApp.responses.ticket.TicketResponse;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -88,7 +89,7 @@ public class TicketService {
         return ticketMapper.toResponse(t);
     }
 
-    // короткий, але “людський” код квитка
+
     private String generateUniqueCode() {
         for (int i = 0; i < 5; i++) {
             byte[] bytes = new byte[8];
@@ -96,7 +97,7 @@ public class TicketService {
             String code = HexFormat.of().withUpperCase().formatHex(bytes);
             if (!ticketRepository.existsByCode(code)) return code;
         }
-        // на крайній випадок
+
         return java.util.UUID.randomUUID().toString().replace("-", "").toUpperCase();
     }
 
@@ -135,11 +136,11 @@ public class TicketService {
     @Transactional
     public TicketVerifyResponse consume(int postId, String rawCode, int actorUserId) {
         var res = validate(postId, rawCode, actorUserId);
-        if (!res.isValid()) return res; // повертаємо причину відмови
+        if (!res.isValid()) return res;
 
-        // тут точно є квиток і він ACTIVE
+
         var ticket = ticketRepository.findByCode(res.getCode()).orElseThrow();
-        ticket.setStatus(TicketStatus.USED);           // ✅ змінюємо статус
+        ticket.setStatus(TicketStatus.USED);
         ticketRepository.save(ticket);
 
         res.setStatus(TicketStatus.USED);
@@ -148,7 +149,7 @@ public class TicketService {
     }
     @Transactional
     public TicketResponse verifyAndUse(int postId, String code, int actorUserId) {
-        // дія дозволена власнику події або checker’у
+
         var post = postService.getById(postId);
         boolean allowed = post.getUser().getId() == actorUserId
                 || eventCheckerService.amIChecker(postId, actorUserId);
@@ -171,5 +172,18 @@ public class TicketService {
         return ticketMapper.toResponse(ticket);
     }
 
+
+    public Map<String, Object> availability(int postId) {
+        var post = postService.getById(postId);
+        long sold = ticketRepository.countByPost_Id(postId);
+        Integer capacity = post.getCapacity();
+        boolean full = capacity != null && sold >= capacity;
+        return Map.of(
+                "sold", sold,
+                "capacity", capacity,
+                "remaining", capacity == null ? null : Math.max(0, capacity - sold),
+                "full", full
+        );
+    }
 
 }

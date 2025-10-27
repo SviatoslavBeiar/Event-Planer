@@ -2,14 +2,13 @@
 package socialMediaApp.api;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-import socialMediaApp.models.enums.Role;
-import socialMediaApp.repositories.UserRepository;
 import socialMediaApp.responses.EventCheckerResponse;
+
+import socialMediaApp.services.CurrentUserService;
 import socialMediaApp.services.EventCheckerService;
 
 import java.util.List;
@@ -20,72 +19,54 @@ import java.util.List;
 public class EventCheckersController {
 
     private final EventCheckerService service;
-    private final UserRepository userRepository;
+    private final CurrentUserService current;
 
-
-    // src/main/java/socialMediaApp/api/EventCheckersController.java
     @GetMapping("/by-post/{postId}")
     public ResponseEntity<List<EventCheckerResponse>> byPost(@PathVariable int postId,
                                                              Authentication auth) {
-        int meId = userRepository.findByEmail(auth.getName()).getId();
+        int meId = current.requireUserId(auth);
         return ResponseEntity.ok(service.byPost(postId, meId));
     }
 
-
     @GetMapping("/mine")
     public List<EventCheckerResponse> mine(Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        return service.mine(me.getId());
+        return service.mine(current.requireUserId(auth));
     }
 
     @GetMapping("/am-i-checker/{postId}")
     public boolean amIChecker(@PathVariable int postId, Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        return service.amIChecker(postId, me.getId());
+        return service.amIChecker(postId, current.requireUserId(auth));
     }
 
     @PostMapping("/assign/{postId}/{userId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public EventCheckerResponse assign(@PathVariable int postId,
                                        @PathVariable int userId,
                                        Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        if (me.getRole() != Role.ORGANIZER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        return service.assign(postId, me.getId(), userId);
+        return service.assign(postId, current.requireUserId(auth), userId);
     }
 
     @DeleteMapping("/revoke/{postId}/{userId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public void revoke(@PathVariable int postId,
                        @PathVariable int userId,
                        Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        if (me.getRole() != Role.ORGANIZER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        service.revoke(postId, me.getId(), userId);
+        service.revoke(postId, current.requireUserId(auth), userId);
     }
 
-
     @PostMapping("/assign-by-email/{postId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public EventCheckerResponse assignByEmail(@PathVariable int postId,
                                               @RequestParam String email,
                                               Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        return service.assignByEmail(postId, me.getId(), email);
+        return service.assignByEmail(postId, current.requireUserId(auth), email);
     }
 
     @DeleteMapping("/revoke-by-email/{postId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
     public void revokeByEmail(@PathVariable int postId,
                               @RequestParam String email,
                               Authentication auth) {
-        var me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        service.revokeByEmail(postId, me.getId(), email);
+        service.revokeByEmail(postId, current.requireUserId(auth), email);
     }
 }
