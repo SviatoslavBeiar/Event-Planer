@@ -17,4 +17,10 @@ export default class UserService{
             }
         });
     }
+
+    getByEmail(email, token) {
+        return axios.get(`${API}users/getbyemail?email=${encodeURIComponent(email)}`, {
+            headers: { Authorization: 'Bearer ' + token }
+        });
+    }
 }

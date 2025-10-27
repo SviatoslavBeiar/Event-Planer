@@ -1,5 +1,5 @@
 // src/pages/PostDetails.jsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
     Box, Center, Heading, Image, Spinner, Stack, Text, HStack, Avatar,
@@ -9,7 +9,10 @@ import { FiMapPin, FiCalendar, FiClock } from 'react-icons/fi'
 import { CopyIcon } from '@chakra-ui/icons'
 import PostService from '../services/PostService'
 import TicketService from '../services/TicketService'
+import EventCheckerService from '../services/EventCheckerService'
 import CommentModal from '../components/CommentModal'
+import AuthContext from '../context/AuthContext'
+import EventCheckersPanel from './EventCheckersPanel'
 
 function fmtDate(dt) {
     if (!dt) return ''
@@ -29,9 +32,11 @@ function fmtPrice(p, cur) {
 export default function PostDetails() {
     const { postId } = useParams()
     const toast = useToast()
+    const { user } = useContext(AuthContext)
 
     const postService = useMemo(() => new PostService(), [])
     const ticketService = useMemo(() => new TicketService(), [])
+    const checkerService = useMemo(() => new EventCheckerService(), [])
 
     const [post, setPost] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -41,14 +46,22 @@ export default function PostDetails() {
     const [ticketLoading, setTicketLoading] = useState(false)
     const [ticketError, setTicketError] = useState('')
 
+    // доступність/місткість
+    const [availability, setAvailability] = useState(null)
+    const [availLoading, setAvailLoading] = useState(false)
+
+    // чи я призначений як checker
+    const [isChecker, setIsChecker] = useState(false)
+
     const imageUrl = process.env.REACT_APP_API + 'postimages/download/' + postId
+    const token = localStorage.getItem('token')
 
     // Load post
     useEffect(() => {
         let mounted = true
         ;(async () => {
             try {
-                const res = await postService.getById(postId, localStorage.getItem('token'))
+                const res = await postService.getById(postId, token)
                 if (mounted) setPost(res.data)
             } catch (e) {
                 setError(e?.message || 'Failed to load post')
@@ -57,7 +70,7 @@ export default function PostDetails() {
             }
         })()
         return () => { mounted = false }
-    }, [postId, postService])
+    }, [postId, postService, token])
 
     // Load my ticket (if any)
     useEffect(() => {
@@ -65,27 +78,82 @@ export default function PostDetails() {
         ;(async () => {
             try {
                 setTicketLoading(true)
-                const res = await ticketService.getMy(Number(postId), localStorage.getItem('token'))
+                const res = await ticketService.getMy(Number(postId), token)
                 if (mounted) setMyTicket(res.data)
             } catch (e) {
-                // 404 = not registered yet; ignore
                 if (e?.response?.status !== 404) setTicketError(e?.message || 'Ticket error')
             } finally {
                 if (mounted) setTicketLoading(false)
             }
         })()
         return () => { mounted = false }
-    }, [postId, ticketService])
+    }, [postId, ticketService, token])
+
+    // Load availability (sold/capacity/remaining)
+    useEffect(() => {
+        let mounted = true
+        ;(async () => {
+            try {
+                setAvailLoading(true)
+                const { data } = await ticketService.getAvailability(Number(postId), token)
+                if (mounted) setAvailability(data)
+            } catch {
+                // ignore; UI просто не покаже залишок
+            } finally {
+                if (mounted) setAvailLoading(false)
+            }
+        })()
+        return () => { mounted = false }
+    }, [postId, ticketService, token])
+
+    // Am I checker for this event?
+    useEffect(() => {
+        let mounted = true
+        if (!postId || !user) return
+            ;(async () => {
+            try {
+                const res = await checkerService.amIChecker(Number(postId), token)
+                if (mounted) setIsChecker(Boolean(res.data))
+            } catch {
+                if (mounted) setIsChecker(false)
+            }
+        })()
+        return () => { mounted = false }
+    }, [postId, user, checkerService, token])
+
+    if (loading) return <Center h="50vh"><Spinner size="lg" /></Center>
+    if (error || !post) return <Center h="50vh"><Heading size="md" color="red.500">{error || 'Post not found'}</Heading></Center>
+
+    const isFree = post.paid === false || (post.paid === true && (!post.price || Number(post.price) === 0))
+    const isPublished = post.status === 'PUBLISHED'
+
+    // автор події
+    const isMyEvent = user?.role === 'ORGANIZER' && Number(user?.id) === Number(post?.userId)
+
+    const canManageCheckers = isMyEvent
+    const canOpenVerifier = isMyEvent || isChecker
+
+    // sold out?
+    const isSoldOut = post.capacity != null && availability?.full === true
 
     const handleRegister = async () => {
         try {
             setTicketLoading(true)
-            const res = await ticketService.register(Number(postId), localStorage.getItem('token'))
+            const res = await ticketService.register(Number(postId), token)
             setMyTicket(res.data)
             toast({ title: 'Registered', status: 'success', duration: 4000, isClosable: true })
+            // оновимо availability
+            try {
+                const { data } = await ticketService.getAvailability(Number(postId), token)
+                setAvailability(data)
+            } catch {}
         } catch (e) {
             const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Registration failed'
             toast({ title: 'Registration failed', description: msg, status: 'error', duration: 6000, isClosable: true })
+            // якщо івент повний — відобразимо локально
+            if (String(msg).toLowerCase().includes('event is full')) {
+                setAvailability((prev) => ({ ...(prev || {}), full: true, remaining: 0, capacity: post.capacity }))
+            }
         } finally {
             setTicketLoading(false)
         }
@@ -99,12 +167,6 @@ export default function PostDetails() {
             toast({ title: 'Copy failed', status: 'error', duration: 2500, isClosable: true })
         }
     }
-
-    if (loading) return <Center h="50vh"><Spinner size="lg" /></Center>
-    if (error || !post) return <Center h="50vh"><Heading size="md" color="red.500">{error || 'Post not found'}</Heading></Center>
-
-    const isFree = post.paid === false || (post.paid === true && (!post.price || Number(post.price) === 0))
-    const isPublished = post.status === 'PUBLISHED'
 
     return (
         <Center mt={8}>
@@ -125,7 +187,7 @@ export default function PostDetails() {
                     )}
                 </HStack>
 
-                {/* Заголовок івенту */}
+                {/* Заголовок */}
                 {post.title && <Heading size="lg">{post.title}</Heading>}
 
                 {/* Дата/час + локація */}
@@ -154,7 +216,7 @@ export default function PostDetails() {
                     </HStack>
                 )}
 
-                {/* Ціна/Безкоштовно + місткість */}
+                {/* Ціна/Місткість/Доступність */}
                 <HStack>
                     {isFree ? <Badge colorScheme="green">Free</Badge>
                         : <Badge colorScheme="purple">{fmtPrice(post.price, post.currency)}</Badge>}
@@ -162,6 +224,15 @@ export default function PostDetails() {
                         <Tooltip label="Capacity">
                             <Badge variant="outline">{post.capacity} seats</Badge>
                         </Tooltip>
+                    )}
+                    {post.capacity != null && availability && (
+                        availability.full ? (
+                            <Badge colorScheme="red">Sold out</Badge>
+                        ) : (
+                            <Badge variant="subtle">
+                                {availLoading ? '...' : `${availability.remaining ?? 0} left`}
+                            </Badge>
+                        )
                     )}
                 </HStack>
 
@@ -175,10 +246,7 @@ export default function PostDetails() {
 
                 <Divider />
 
-                {/* НИЗ (вертикально):
-            1) Кнопка/статус квитка
-            2) Кнопка коментарів
-            3) Back to Home (внизу) */}
+                {/* Низ: 1) квиток 2) коментарі 3) Back */}
                 <Stack spacing={4} w="100%">
                     {/* 1) Реєстрація / Статус */}
                     {myTicket ? (
@@ -207,10 +275,10 @@ export default function PostDetails() {
                             isLoading={ticketLoading}
                             onClick={handleRegister}
                             colorScheme="pink"
-                            isDisabled={!isPublished}
+                            isDisabled={!isPublished || isSoldOut}
                             alignSelf="flex-start"
                         >
-                            {isPublished ? 'Register' : 'Registration disabled'}
+                            {!isPublished ? 'Registration disabled' : (isSoldOut ? 'Sold out' : 'Register')}
                         </Button>
                     )}
 
@@ -225,6 +293,16 @@ export default function PostDetails() {
                 </Stack>
 
                 {ticketError && <Text color="red.400" fontSize="sm">{ticketError}</Text>}
+
+                {/* Керування чекерами — тільки для автора-організатора */}
+                {canManageCheckers && <EventCheckersPanel postId={post.id} />}
+
+                {/* Відкрити верифікатор — автор або призначений checker */}
+                {canOpenVerifier && (
+                    <Button as={Link} to={`/verify/${post.id}`} variant="outline">
+                        Open Verifier
+                    </Button>
+                )}
             </Stack>
         </Center>
     )

@@ -45,7 +45,11 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found: email=" + email));
         return userMapper.userToResponse(user);
     }
-
+    public User getByEmailEntity(String email) {
+        User user = Optional.ofNullable(userRepository.findByEmail(email))
+                .orElseThrow(() -> new NotFoundException("User not found: email=" + email));
+        return user;
+    }
     public List<UserFollowingResponse> getUserFollowing(int userId) {
         if (!userRepository.existsById(userId)) {
             throw new NotFoundException("User not found: id=" + userId);

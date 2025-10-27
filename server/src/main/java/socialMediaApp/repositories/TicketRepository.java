@@ -13,4 +13,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Integer> {
     long countByPost_Id(int postId);
     boolean existsByCode(String code);
     List<Ticket> findAllByUser_IdOrderByCreatedAtDesc(int userId);
+
+
+    Optional<Ticket> findByCode(String code);
+
+
 }

@@ -2,8 +2,10 @@
 package socialMediaApp.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import socialMediaApp.api.exp.AlreadyExistsException;
 import socialMediaApp.api.exp.NotFoundException;
 import socialMediaApp.mappers.TicketMapper;
@@ -11,7 +13,10 @@ import socialMediaApp.models.Post;
 import socialMediaApp.models.Ticket;
 import socialMediaApp.models.User;
 import socialMediaApp.models.enums.EventStatus;
+import socialMediaApp.models.enums.TicketStatus;
+import socialMediaApp.repositories.EventCheckerRepository;
 import socialMediaApp.repositories.TicketRepository;
+import socialMediaApp.responses.TicketVerifyResponse;
 import socialMediaApp.responses.ticket.TicketResponse;
 
 import java.security.SecureRandom;
@@ -29,6 +34,8 @@ public class TicketService {
     private final UserService userService;
 
     private static final SecureRandom RNG = new SecureRandom();
+    private final EventCheckerRepository eventCheckerRepository;
+    private final EventCheckerService eventCheckerService;
 
     public TicketResponse getMy(int postId, int userId) {
         Ticket t = ticketRepository.findByPost_IdAndUser_Id(postId, userId)
@@ -92,4 +99,77 @@ public class TicketService {
         // на крайній випадок
         return java.util.UUID.randomUUID().toString().replace("-", "").toUpperCase();
     }
+
+    private boolean canVerify(int postId, int actorUserId) {
+        var post = postService.getById(postId);
+        // організатор події або призначений перевіряючий
+        return post.getUser().getId() == actorUserId
+                || eventCheckerRepository.existsByPost_IdAndUser_Id(postId, actorUserId);
+    }
+
+    public TicketVerifyResponse validate(int postId, String rawCode, int actorUserId) {
+        if (!canVerify(postId, actorUserId)) {
+            return new TicketVerifyResponse(false, "FORBIDDEN", null, null, null, null, null, postId, null, java.time.LocalDateTime.now());
+        }
+        String code = (rawCode == null ? "" : rawCode.trim()).toUpperCase();
+        var opt = ticketRepository.findByCode(code);
+        if (opt.isEmpty()) {
+            return new TicketVerifyResponse(false, "TICKET_NOT_FOUND", null, code, null, null, null, postId, null, java.time.LocalDateTime.now());
+        }
+        var t = opt.get();
+        if (t.getPost().getId() != postId) {
+            return new TicketVerifyResponse(false, "TICKET_FOR_ANOTHER_EVENT", t.getId(), code, t.getStatus(),
+                    t.getUser().getId(), t.getUser().getName() + " " + t.getUser().getLastName(),
+                    postId, null, java.time.LocalDateTime.now());
+        }
+        if (t.getStatus() != TicketStatus.ACTIVE) {
+            return new TicketVerifyResponse(false, "TICKET_NOT_ACTIVE", t.getId(), code, t.getStatus(),
+                    t.getUser().getId(), t.getUser().getName() + " " + t.getUser().getLastName(),
+                    postId, t.getPost().getTitle(), java.time.LocalDateTime.now());
+        }
+        return new TicketVerifyResponse(true, "OK", t.getId(), code, t.getStatus(),
+                t.getUser().getId(), t.getUser().getName() + " " + t.getUser().getLastName(),
+                postId, t.getPost().getTitle(), java.time.LocalDateTime.now());
+    }
+
+    @Transactional
+    public TicketVerifyResponse consume(int postId, String rawCode, int actorUserId) {
+        var res = validate(postId, rawCode, actorUserId);
+        if (!res.isValid()) return res; // повертаємо причину відмови
+
+        // тут точно є квиток і він ACTIVE
+        var ticket = ticketRepository.findByCode(res.getCode()).orElseThrow();
+        ticket.setStatus(TicketStatus.USED);           // ✅ змінюємо статус
+        ticketRepository.save(ticket);
+
+        res.setStatus(TicketStatus.USED);
+        res.setMessage("CONSUMED");
+        return res;
+    }
+    @Transactional
+    public TicketResponse verifyAndUse(int postId, String code, int actorUserId) {
+        // дія дозволена власнику події або checker’у
+        var post = postService.getById(postId);
+        boolean allowed = post.getUser().getId() == actorUserId
+                || eventCheckerService.amIChecker(postId, actorUserId);
+        if (!allowed) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+
+        var ticket = ticketRepository.findByCode(code)
+                .orElseThrow(() -> new NotFoundException("Ticket not found"));
+
+        if (ticket.getPost().getId() != postId) {
+            throw new IllegalStateException("Ticket belongs to another event");
+        }
+        if (ticket.getStatus() == TicketStatus.USED) {
+            throw new IllegalStateException("Ticket already used");
+        }
+        if (ticket.getStatus() == TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Ticket cancelled");
+        }
+
+        ticket.setStatus(TicketStatus.USED);
+        return ticketMapper.toResponse(ticket);
+    }
+
+
 }
