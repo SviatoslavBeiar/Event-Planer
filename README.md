@@ -44,13 +44,12 @@ Users can register for events, receive tickets, and participate in activities.
 
 ---
 
-## 🚀 Project Setup
-```bash
-# Backend
-cd backend
-mvn spring-boot:run
+## 🌟 Future Enhancements
 
-# Frontend
-cd frontend
-npm install
-npm start
+- 🧾 **QR & PDF Ticket Generation** — automatically generate QR codes and downloadable PDF tickets  
+- 📧 **Email Delivery** — send tickets directly to users via email  
+- ✅ **Email Validation** — ensure valid user email addresses during registration  
+- 🔐 **OAuth 2.0 Authentication** — enable login via Google, Facebook, or other providers  
+- 🤖 **Machine Learning Integration** — analyze user behavior to identify interests and suggest personalized events  
+- 📍 **Nearby Events** — show events based on user’s current location or city  
+
