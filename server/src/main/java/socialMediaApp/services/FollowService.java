@@ -26,16 +26,16 @@ public class FollowService {
 
     @Transactional
     public void add(FollowRequest req) {
-        // забороняємо підписку на себе
+
         if (req.getUserId() == req.getFollowingId()) {
             throw new ForbiddenOperationException("You cannot follow yourself");
         }
 
-        // 404 якщо будь-якого користувача не існує
+
         userService.getById(req.getUserId());
         userService.getById(req.getFollowingId());
 
-        // 409 якщо вже підписаний
+
         boolean exists = followRepository.existsByUser_IdAndFollowing_Id(req.getUserId(), req.getFollowingId());
         if (exists) {
             throw new AlreadyExistsException("Already following this user");
@@ -47,7 +47,7 @@ public class FollowService {
 
     @Transactional
     public void delete(FollowRequest req) {
-        // якщо зв'язку немає — 404
+
         Follow follow = followRepository
                 .findByUser_IdAndFollowing_Id(req.getUserId(), req.getFollowingId())
                 .orElseThrow(() -> new NotFoundException(

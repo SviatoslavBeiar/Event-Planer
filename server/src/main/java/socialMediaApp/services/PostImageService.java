@@ -17,7 +17,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class PostImageService {
 
-    // Можеш підкрутити ліміт за потреби
+
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024; // 10MB
 
     private final PostImageRepository postImageRepository;

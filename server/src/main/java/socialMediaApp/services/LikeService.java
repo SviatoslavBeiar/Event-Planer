@@ -34,21 +34,20 @@ public class LikeService {
     }
 
     public List<LikeResponse> getAllByPost(int postId) {
-        // 404 якщо пост не існує
         postService.getById(postId);
         List<Like> likes = likeRepository.findAllByPost_Id(postId);
         return likeMapper.likesToLikeResponses(likes);
     }
 
     public List<LikeResponse> getAllByUser(int userId) {
-        // 404 якщо користувач не існує
+
         userService.getById(userId);
         List<Like> likes = likeRepository.findAllByUser_Id(userId);
         return likeMapper.likesToLikeResponses(likes);
     }
 
     public boolean isLiked(int userId, int postId) {
-        // узгоджено з іншими сервісами — кидаємо 404, якщо ресурсів немає
+
         userService.getById(userId);
         postService.getById(postId);
         return likeRepository.findByUser_IdAndPost_Id(userId, postId).isPresent();
@@ -65,7 +64,7 @@ public class LikeService {
         }
 
         Like like = likeMapper.requestToLike(req);
-        // нормалізуємо зв’язки на випадок, якщо мапер їх не поставив/поставив інші
+
         if (like.getUser() == null || like.getUser().getId() != user.getId()) {
             like.setUser(user);
         }

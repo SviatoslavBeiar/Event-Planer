@@ -1,62 +1,52 @@
 // src/services/TicketService.js
 import axios from 'axios';
 
+
+const API = (process.env.REACT_APP_API || 'http://localhost:8080/api/')
+    .replace(/\/?$/, '/');
+
+const auth = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
+
 export default class TicketService {
     register(postId, token) {
-        return axios.post(
-            process.env.REACT_APP_API + `tickets/register/${postId}`,
-            {},
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
-    }
-    getMy(postId, token) {
-        return axios.get(
-            process.env.REACT_APP_API + `tickets/my/${postId}`,
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.post(`${API}tickets/register/${postId}`, {}, auth(token));
     }
 
-    // ВСІ мої квитки
+    getMy(postId, token) {
+        return axios.get(`${API}tickets/my/${postId}`, auth(token));
+    }
+
+
     getMine(token) {
-        return axios.get(
-            process.env.REACT_APP_API + `tickets/mine`,
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.get(`${API}tickets/mine`, auth(token));
     }
-    // ✅ нове:
+
+
     validate(postId, code, token) {
-        return axios.post(
-            process.env.REACT_APP_API + `tickets/verify/validate`,
-            { postId, code },
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.post(`${API}tickets/verify/validate`, { postId, code }, auth(token));
     }
+
 
     consume(postId, code, token) {
-        return axios.post(
-            process.env.REACT_APP_API + `tickets/verify/consume`,
-            { postId, code },
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.post(`${API}tickets/verify/consume`, { postId, code }, auth(token));
     }
 
-    // src/services/TicketService.js
+
     verify(postId, code, token) {
-        return axios.post(
-            process.env.REACT_APP_API + `tickets/verify/${postId}`,
-            { code },
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.post(`${API}tickets/verify/${postId}`, { code }, auth(token));
     }
 
 
-// src/services/TicketService.js
     getAvailability(postId, token) {
-        return axios.get(
-            process.env.REACT_APP_API + `tickets/availability/${postId}`,
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
+        return axios.get(`${API}tickets/availability/${postId}`, auth(token));
     }
 
 
+    verifyValidate(postId, code, token) {
+        return this.validate(postId, code, token);
+    }
+
+    verifyConsume(postId, code, token) {
+        return this.consume(postId, code, token);
+    }
 }

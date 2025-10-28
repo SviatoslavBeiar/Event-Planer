@@ -4,7 +4,7 @@ package socialMediaApp.mappers;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import socialMediaApp.models.EventChecker;
-import socialMediaApp.responses.EventCheckerResponse;
+import socialMediaApp.responses.event.EventCheckerResponse;
 
 
 import java.util.List;

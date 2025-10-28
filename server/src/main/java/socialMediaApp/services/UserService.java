@@ -40,7 +40,7 @@ public class UserService {
     }
 
     public UserResponse getByEmail(String email) {
-        // findByEmail у вас повертає User (не Optional)
+
         User user = Optional.ofNullable(userRepository.findByEmail(email))
                 .orElseThrow(() -> new NotFoundException("User not found: email=" + email));
         return userMapper.userToResponse(user);
@@ -59,8 +59,7 @@ public class UserService {
         );
     }
 
-    // Якщо хочете не «світити» 404 у перевірці фолоу — можна просто повернути false;
-    // я залишив явні 404 для обох користувачів.
+
     public boolean isFollowing(int userId, int followingId) {
         if (!userRepository.existsById(userId)) {
             throw new NotFoundException("User not found: id=" + userId);
@@ -78,7 +77,7 @@ public class UserService {
 
     @Transactional
     public void add(UserAddRequest userAddRequest) {
-        // Якщо зробите existsByEmail у репозиторії — краще використати його.
+
         if (Optional.ofNullable(userRepository.findByEmail(userAddRequest.getEmail())).isPresent()) {
             throw new AlreadyExistsException("Email already exists: " + userAddRequest.getEmail());
         }

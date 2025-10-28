@@ -35,18 +35,18 @@ public class CommentService {
 
     @Transactional
     public void add(CommentAddRequest commentAddRequest) {
-        // Переконуємось, що юзер і пост існують (кине 404 при потребі)
+
         User user = userService.getById(commentAddRequest.getUserId());
         Post post = postService.getById(commentAddRequest.getPostId());
 
-        // Базова валідація опису (додатково до @Valid у DTO, якщо є)
+
         if (commentAddRequest.getDescription() == null || commentAddRequest.getDescription().isBlank()) {
             throw new IllegalArgumentException("Comment description must not be blank");
         }
 
         Comment comment = commentMapper.addRequestToComment(commentAddRequest);
 
-        // Нормалізуємо зв’язки на випадок, якщо мапер їх не встановив/встановив неправильно
+
         if (comment.getUser() == null || comment.getUser().getId() != user.getId()) {
             comment.setUser(user);
         }
@@ -69,14 +69,14 @@ public class CommentService {
     }
 
     public List<CommentGetResponse> getAllByPost(int postId) {
-        // 404 якщо пост відсутній
+
         postService.getById(postId);
         List<Comment> comments = commentRepository.findAllByPost_Id(postId);
         return commentMapper.commentsToResponses(comments);
     }
 
     public List<CommentGetResponse> getAllByUser(int userId) {
-        // 404 якщо користувач відсутній
+
         userService.getById(userId);
         List<Comment> comments = commentRepository.findAllByUser_Id(userId);
         return commentMapper.commentsToResponses(comments);
@@ -87,15 +87,13 @@ public class CommentService {
         Comment commentToUpdate = commentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Comment not found: id=" + id));
 
-        // Базова валідація опису
+
         if (commentUpdateRequest.getDescription() == null || commentUpdateRequest.getDescription().isBlank()) {
             throw new IllegalArgumentException("Comment description must not be blank");
         }
 
         commentToUpdate.setDescription(commentUpdateRequest.getDescription());
-        // save() не обовʼязковий: в межах @Transactional JPA зробить dirty-checking,
-        // але можна залишити для явності:
-        // commentRepository.save(commentToUpdate);
+     ;
     }
 
     @Transactional

@@ -1,5 +1,5 @@
 // src/main/java/socialMediaApp/responses/eventchecker/EventCheckerResponse.java
-package socialMediaApp.responses;
+package socialMediaApp.responses.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

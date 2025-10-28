@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import socialMediaApp.requests.TicketVerifyRequest;
-import socialMediaApp.responses.TicketVerifyResponse;
+import socialMediaApp.responses.ticket.TicketVerifyResponse;
 import socialMediaApp.responses.ticket.TicketResponse;
 
 import socialMediaApp.services.CurrentUserService;
