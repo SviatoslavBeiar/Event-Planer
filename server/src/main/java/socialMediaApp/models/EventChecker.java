@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Table(name = "event_checkers",
         uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
 public class EventChecker {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
@@ -25,5 +26,7 @@ public class EventChecker {
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
-    @PrePersist void onCreate() { createdAt = LocalDateTime.now(); }
+    @PrePersist void onCreate() {
+        createdAt = LocalDateTime.now(); }
+
 }

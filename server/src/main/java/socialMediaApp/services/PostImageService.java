@@ -34,7 +34,6 @@ public class PostImageService {
 
     @Transactional
     public PostImageResponse upload(MultipartFile file, int postId) throws IOException {
-        // --- базова валідація вхідних даних ---
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Image file is required");
         }
@@ -46,10 +45,10 @@ public class PostImageService {
             throw new IllegalArgumentException("Image is too large. Max 10MB");
         }
 
-        // кине 404, якщо пост не існує
+
         var post = postService.getById(postId);
 
-        // Якщо політика — одна картинка на пост: оновлюємо, якщо існує
+
         Optional<PostImage> existing = postImageRepository.findPostImageByPost_Id(postId);
 
         PostImage img = existing.orElseGet(PostImage::new);

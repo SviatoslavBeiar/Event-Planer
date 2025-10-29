@@ -1,5 +1,6 @@
 package socialMediaApp.services;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import socialMediaApp.api.exp.NotFoundException;
@@ -30,8 +31,7 @@ public class PostService {
     }
 
     public List<PostGetResponse> getAll() {
-        List<Post> posts = postRepository.findAll();
-
+        List<Post> posts = postRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
         return postMapper.postsToGetResponses(posts);
     }
 
@@ -47,7 +47,6 @@ public class PostService {
     }
 
     public List<PostGetResponse> getAllByUser(int userId) {
-
         userService.getById(userId);
         List<Post> userPosts = postRepository.findAllByUser_IdOrderByIdDesc(userId);
         return postMapper.postsToGetResponses(userPosts);
@@ -67,7 +66,7 @@ public class PostService {
 
         List<Post> posts = postRepository.findAllByUserIds(userIds);
 
-        posts.sort(Comparator.comparing(Post::getId).reversed());
+      //  posts.sort(Comparator.comparing(Post::getId).reversed());
 
         return postMapper.postsToGetResponses(posts);
     }

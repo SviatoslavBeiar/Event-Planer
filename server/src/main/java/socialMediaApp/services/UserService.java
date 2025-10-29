@@ -39,12 +39,12 @@ public class UserService {
         return userMapper.userToResponse(user);
     }
 
-    public UserResponse getByEmail(String email) {
-
-        User user = Optional.ofNullable(userRepository.findByEmail(email))
-                .orElseThrow(() -> new NotFoundException("User not found: email=" + email));
-        return userMapper.userToResponse(user);
-    }
+//    public UserResponse getByEmail(String email) {
+//
+//        User user = Optional.ofNullable(userRepository.findByEmail(email))
+//                .orElseThrow(() -> new NotFoundException("User not found: email=" + email));
+//        return userMapper.userToResponse(user);
+//    }
     public User getByEmailEntity(String email) {
         User user = Optional.ofNullable(userRepository.findByEmail(email))
                 .orElseThrow(() -> new NotFoundException("User not found: email=" + email));

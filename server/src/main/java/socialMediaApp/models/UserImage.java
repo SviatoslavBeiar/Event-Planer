@@ -29,7 +29,7 @@ public class UserImage {
     @Column(name = "data",length = 1000)
     private byte[] data;
     @NotNull
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     User user;
 }

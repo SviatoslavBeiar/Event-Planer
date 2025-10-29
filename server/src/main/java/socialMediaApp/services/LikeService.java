@@ -1,5 +1,6 @@
 package socialMediaApp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import socialMediaApp.api.exp.AlreadyExistsException;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class LikeService {
 
     private final LikeRepository likeRepository;
@@ -23,15 +25,6 @@ public class LikeService {
     private final UserService userService;
     private final PostService postService;
 
-    public LikeService(LikeRepository likeRepository,
-                       LikeMapper likeMapper,
-                       UserService userService,
-                       PostService postService) {
-        this.likeRepository = likeRepository;
-        this.likeMapper = likeMapper;
-        this.userService = userService;
-        this.postService = postService;
-    }
 
     public List<LikeResponse> getAllByPost(int postId) {
         postService.getById(postId);
@@ -58,22 +51,16 @@ public class LikeService {
         User user = userService.getById(req.getUserId());
         Post post = postService.getById(req.getPostId());
 
-        boolean exists = likeRepository.findByUser_IdAndPost_Id(req.getUserId(), req.getPostId()).isPresent();
-        if (exists) {
+        if (likeRepository.existsByUser_IdAndPost_Id(user.getId(), post.getId())) {
             throw new AlreadyExistsException("Already liked this post");
         }
 
-        Like like = likeMapper.requestToLike(req);
-
-        if (like.getUser() == null || like.getUser().getId() != user.getId()) {
-            like.setUser(user);
-        }
-        if (like.getPost() == null || like.getPost().getId() != post.getId()) {
-            like.setPost(post);
-        }
-
+        Like like = new Like();
+        like.setUser(user);
+        like.setPost(post);
         likeRepository.save(like);
     }
+
 
     @Transactional
     public void delete(LikeRequest req) {

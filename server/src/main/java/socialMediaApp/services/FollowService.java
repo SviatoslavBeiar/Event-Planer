@@ -1,5 +1,6 @@
 package socialMediaApp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import socialMediaApp.api.exp.AlreadyExistsException;
@@ -12,17 +13,12 @@ import socialMediaApp.requests.FollowRequest;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class FollowService {
 
     private final FollowRepository followRepository;
     private final FollowMapper followMapper;
     private final UserService userService;
-
-    public FollowService(FollowRepository followRepository, FollowMapper followMapper, UserService userService) {
-        this.followRepository = followRepository;
-        this.followMapper = followMapper;
-        this.userService = userService;
-    }
 
     @Transactional
     public void add(FollowRequest req) {
@@ -47,13 +43,13 @@ public class FollowService {
 
     @Transactional
     public void delete(FollowRequest req) {
-
-        Follow follow = followRepository
-                .findByUser_IdAndFollowing_Id(req.getUserId(), req.getFollowingId())
-                .orElseThrow(() -> new NotFoundException(
-                        "Follow relation not found: userId=" + req.getUserId() + ", followingId=" + req.getFollowingId()
-                ));
-
-        followRepository.delete(follow);
+        long affected = followRepository
+                .deleteByUser_IdAndFollowing_Id(req.getUserId(), req.getFollowingId());
+        if (affected == 0) {
+            throw new NotFoundException(
+                    "Follow relation not found: userId=" + req.getUserId() + ", followingId=" + req.getFollowingId()
+            );
+        }
     }
+
 }

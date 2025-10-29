@@ -28,7 +28,7 @@ public class PostImage {
     @Column(name = "data",length = 1000)
     private byte[] data;
     @NotNull
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id")
     Post post;
 

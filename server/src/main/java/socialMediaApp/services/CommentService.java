@@ -1,5 +1,6 @@
 package socialMediaApp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import socialMediaApp.api.exp.NotFoundException;
@@ -12,10 +13,13 @@ import socialMediaApp.requests.CommentAddRequest;
 import socialMediaApp.requests.CommentUpdateRequest;
 import socialMediaApp.responses.comment.CommentGetResponse;
 
+import java.util.Comparator;
 import java.util.List;
+
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class CommentService {
 
     private final CommentRepository commentRepository;
@@ -23,29 +27,17 @@ public class CommentService {
     private final UserService userService;
     private final PostService postService;
 
-    public CommentService(CommentRepository commentRepository,
-                          CommentMapper commentMapper,
-                          UserService userService,
-                          PostService postService) {
-        this.commentRepository = commentRepository;
-        this.commentMapper = commentMapper;
-        this.userService = userService;
-        this.postService = postService;
-    }
 
     @Transactional
     public void add(CommentAddRequest commentAddRequest) {
-
         User user = userService.getById(commentAddRequest.getUserId());
         Post post = postService.getById(commentAddRequest.getPostId());
-
 
         if (commentAddRequest.getDescription() == null || commentAddRequest.getDescription().isBlank()) {
             throw new IllegalArgumentException("Comment description must not be blank");
         }
 
         Comment comment = commentMapper.addRequestToComment(commentAddRequest);
-
 
         if (comment.getUser() == null || comment.getUser().getId() != user.getId()) {
             comment.setUser(user);
@@ -58,27 +50,25 @@ public class CommentService {
     }
 
     public List<CommentGetResponse> getAll() {
-        List<Comment> comments = commentRepository.findAll();
+        var comments = commentRepository.findAllBy(); // з @EntityGraph
         return commentMapper.commentsToResponses(comments);
     }
 
     public CommentGetResponse getById(int id) {
-        Comment comment = commentRepository.findById(id)
+        var comment = commentRepository.findWithUserAndPostById(id)
                 .orElseThrow(() -> new NotFoundException("Comment not found: id=" + id));
         return commentMapper.commentToResponse(comment);
     }
 
     public List<CommentGetResponse> getAllByPost(int postId) {
-
         postService.getById(postId);
-        List<Comment> comments = commentRepository.findAllByPost_Id(postId);
+        var comments = commentRepository.findAllByPost_IdOrderByIdAsc(postId);
         return commentMapper.commentsToResponses(comments);
     }
 
     public List<CommentGetResponse> getAllByUser(int userId) {
-
         userService.getById(userId);
-        List<Comment> comments = commentRepository.findAllByUser_Id(userId);
+        var comments = commentRepository.findAllByUser_IdOrderByIdAsc(userId); // з @EntityGraph
         return commentMapper.commentsToResponses(comments);
     }
 
@@ -87,13 +77,12 @@ public class CommentService {
         Comment commentToUpdate = commentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Comment not found: id=" + id));
 
-
         if (commentUpdateRequest.getDescription() == null || commentUpdateRequest.getDescription().isBlank()) {
             throw new IllegalArgumentException("Comment description must not be blank");
         }
 
         commentToUpdate.setDescription(commentUpdateRequest.getDescription());
-     ;
+
     }
 
     @Transactional
