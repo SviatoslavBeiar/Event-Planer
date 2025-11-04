@@ -45,23 +45,22 @@ public class PostService {
 
         Post post = getById(postId);
 
-        // лише власник події
+
         if (post.getUser().getId() != organizerId) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ONLY_EVENT_OWNER");
         }
 
         EventStatus old = post.getStatus();
         if (old == newStatus) {
-            // нічого міняти — повертаємо поточний стан
+
             return postMapper.postToGetResponse(post);
         }
 
-        // правила переходів (мінімальні, щоб не ламати фронт):
-        // CANCELLED -> будь-що інше заборонено
+
         if (old == EventStatus.CANCELLED && newStatus != EventStatus.CANCELLED) {
             throw new IllegalStateException("CANCELLED_IS_FINAL");
         }
-        // (за потреби додай інші перевірки — часові вікна, валідації тощо)
+
 
         post.setStatus(newStatus); // JPA dirty-checking
         return postMapper.postToGetResponse(post);
