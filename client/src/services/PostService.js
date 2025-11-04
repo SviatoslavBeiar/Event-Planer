@@ -33,4 +33,14 @@ export default class PostService{
             headers: { 'Authorization': "Bearer " + token }
         })
     }
+
+
+    // ✅ FIXED: use REACT_APP_API (not undefined `API`)
+    updateStatus(postId, status, token) {
+        return axios.put(
+            process.env.REACT_APP_API + `posts/${postId}/status`,
+            { status }, // "PUBLISHED" | "DRAFT" | "CANCELLED"
+            { headers: { Authorization: 'Bearer ' + token } }
+        );
+    }
 }

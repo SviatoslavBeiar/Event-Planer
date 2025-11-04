@@ -1,12 +1,16 @@
 package socialMediaApp.services;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import socialMediaApp.api.exp.NotFoundException;
 import socialMediaApp.mappers.PostMapper;
 import socialMediaApp.models.Post;
 import socialMediaApp.models.User;
+import socialMediaApp.models.enums.EventStatus;
 import socialMediaApp.repositories.PostRepository;
 import socialMediaApp.requests.PostAddRequest;
 import socialMediaApp.responses.post.PostGetResponse;
@@ -18,22 +22,60 @@ import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class PostService {
 
     private final PostRepository postRepository;
     private final PostMapper postMapper;
     private final UserService userService;
 
-    public PostService(PostRepository postRepository, PostMapper postMapper, UserService userService) {
-        this.postRepository = postRepository;
-        this.postMapper = postMapper;
-        this.userService = userService;
+
+
+    @Transactional
+    public PostGetResponse updateStatusAsOrganizer(int postId, String organizerEmail, EventStatus newStatus) {
+        int organizerId = userService.getByEmailEntity(organizerEmail).getId();
+        return updateStatus(postId, organizerId, newStatus);
     }
 
+    @Transactional
+    public PostGetResponse updateStatus(int postId, int organizerId, EventStatus newStatus) {
+        if (newStatus == null) {
+            throw new IllegalArgumentException("STATUS_REQUIRED");
+        }
+
+        Post post = getById(postId);
+
+        // лише власник події
+        if (post.getUser().getId() != organizerId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ONLY_EVENT_OWNER");
+        }
+
+        EventStatus old = post.getStatus();
+        if (old == newStatus) {
+            // нічого міняти — повертаємо поточний стан
+            return postMapper.postToGetResponse(post);
+        }
+
+        // правила переходів (мінімальні, щоб не ламати фронт):
+        // CANCELLED -> будь-що інше заборонено
+        if (old == EventStatus.CANCELLED && newStatus != EventStatus.CANCELLED) {
+            throw new IllegalStateException("CANCELLED_IS_FINAL");
+        }
+        // (за потреби додай інші перевірки — часові вікна, валідації тощо)
+
+        post.setStatus(newStatus); // JPA dirty-checking
+        return postMapper.postToGetResponse(post);
+    }
+
+
+
     public List<PostGetResponse> getAll() {
-        List<Post> posts = postRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
+        List<Post> posts = postRepository
+                .findAllByStatusIn(List.of(EventStatus.CANCELLED, EventStatus.PUBLISHED)
+                        , Sort.by(Sort.Direction.DESC, "id"));
         return postMapper.postsToGetResponses(posts);
     }
+
 
     public PostGetResponse getResponseById(int id) {
         Post post = postRepository.findById(id)

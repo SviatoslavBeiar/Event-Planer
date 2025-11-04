@@ -2,6 +2,7 @@ package socialMediaApp.api;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -9,6 +10,7 @@ import socialMediaApp.models.User;
 import socialMediaApp.models.enums.Role;
 import socialMediaApp.repositories.UserRepository;
 import socialMediaApp.requests.PostAddRequest;
+import socialMediaApp.requests.PostStatusUpdateRequest;
 import socialMediaApp.responses.post.PostGetResponse;
 import socialMediaApp.services.PostService;
 
@@ -65,6 +67,17 @@ public class PostsController {
     public ResponseEntity<String> delete(@RequestParam int id){
         postService.delete(id);
         return new ResponseEntity<>("Deleted",HttpStatus.OK);
+    }
+
+
+
+    @PutMapping("/{postId}/status")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<PostGetResponse> updateStatus(@PathVariable int postId,
+                                                        @RequestBody PostStatusUpdateRequest req,
+                                                        Authentication auth) {
+        return ResponseEntity.ok(
+                postService.updateStatusAsOrganizer(postId, auth.getName(), req.getStatus()));
     }
 
 }

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, useContext } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
     Box, Center, Heading, Image, Spinner, Stack, Text, HStack, Avatar,
-    Button, Badge, Divider, Tooltip, Code, useToast, Wrap, WrapItem
+    Button, Badge, Divider, Tooltip, Code, useToast, Wrap, WrapItem, ButtonGroup
 } from '@chakra-ui/react'
 import { FiMapPin, FiCalendar, FiClock } from 'react-icons/fi'
 import { CopyIcon } from '@chakra-ui/icons'
@@ -46,11 +46,11 @@ export default function PostDetails() {
     const [ticketLoading, setTicketLoading] = useState(false)
     const [ticketError, setTicketError] = useState('')
 
-    // доступність/місткість
+    // availability / capacity
     const [availability, setAvailability] = useState(null)
     const [availLoading, setAvailLoading] = useState(false)
 
-    // чи я призначений як checker
+    // am i checker
     const [isChecker, setIsChecker] = useState(false)
 
     const imageUrl = process.env.REACT_APP_API + 'postimages/download/' + postId
@@ -127,7 +127,7 @@ export default function PostDetails() {
     const isFree = post.paid === false || (post.paid === true && (!post.price || Number(post.price) === 0))
     const isPublished = post.status === 'PUBLISHED'
 
-    // автор події
+    // author
     const isMyEvent = user?.role === 'ORGANIZER' && Number(user?.id) === Number(post?.userId)
 
     const canManageCheckers = isMyEvent
@@ -142,7 +142,7 @@ export default function PostDetails() {
             const res = await ticketService.register(Number(postId), token)
             setMyTicket(res.data)
             toast({ title: 'Registered', status: 'success', duration: 4000, isClosable: true })
-            // оновимо availability
+            // refresh availability
             try {
                 const { data } = await ticketService.getAvailability(Number(postId), token)
                 setAvailability(data)
@@ -150,7 +150,7 @@ export default function PostDetails() {
         } catch (e) {
             const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Registration failed'
             toast({ title: 'Registration failed', description: msg, status: 'error', duration: 6000, isClosable: true })
-            // якщо івент повний — відобразимо локально
+            // handle full locally
             if (String(msg).toLowerCase().includes('event is full')) {
                 setAvailability((prev) => ({ ...(prev || {}), full: true, remaining: 0, capacity: post.capacity }))
             }
@@ -165,6 +165,18 @@ export default function PostDetails() {
             toast({ title: 'Ticket code copied', status: 'success', duration: 2500, isClosable: true })
         } catch {
             toast({ title: 'Copy failed', status: 'error', duration: 2500, isClosable: true })
+        }
+    }
+
+    // Organizer: change post status
+    const changeStatus = async (status) => {
+        try {
+            const { data } = await postService.updateStatus(Number(postId), status, token)
+            setPost(data)
+            toast({ title: 'Status updated', status: 'success', duration: 2500, isClosable: true })
+        } catch (e) {
+            const msg = e?.response?.data?.message || e?.message || 'Failed to update status'
+            toast({ title: 'Error', description: msg, status: 'error', duration: 4000, isClosable: true })
         }
     }
 
@@ -216,7 +228,7 @@ export default function PostDetails() {
                     </HStack>
                 )}
 
-                {/* Ціна/Місткість/Доступність */}
+                {/* Ціна / Місткість / Доступність */}
                 <HStack>
                     {isFree ? <Badge colorScheme="green">Free</Badge>
                         : <Badge colorScheme="purple">{fmtPrice(post.price, post.currency)}</Badge>}
@@ -243,6 +255,21 @@ export default function PostDetails() {
                 <Box>
                     <Image src={imageUrl} alt="Post image" objectFit="contain" maxH="md" fallbackSrc="" />
                 </Box>
+
+                {/* Organizer-only: status actions */}
+                {isMyEvent && (
+                    <ButtonGroup size="sm" variant="outline">
+                        <Button onClick={() => changeStatus('PUBLISHED')} isDisabled={post.status === 'PUBLISHED'}>
+                            Publish
+                        </Button>
+                        <Button onClick={() => changeStatus('DRAFT')} isDisabled={post.status === 'DRAFT'}>
+                            Move to Draft
+                        </Button>
+                        <Button onClick={() => changeStatus('CANCELLED')} colorScheme="red" isDisabled={post.status === 'CANCELLED'}>
+                            Cancel
+                        </Button>
+                    </ButtonGroup>
+                )}
 
                 <Divider />
 
@@ -295,10 +322,10 @@ export default function PostDetails() {
                 {ticketError && <Text color="red.400" fontSize="sm">{ticketError}</Text>}
 
                 {/* Керування чекерами — тільки для автора-організатора */}
-                {canManageCheckers && <EventCheckersPanel postId={post.id} />}
+                {isMyEvent && <EventCheckersPanel postId={post.id} />}
 
                 {/* Відкрити верифікатор — автор або призначений checker */}
-                {canOpenVerifier && (
+                {(isMyEvent || isChecker) && (
                     <Button as={Link} to={`/verify/${post.id}`} variant="outline">
                         Open Verifier
                     </Button>

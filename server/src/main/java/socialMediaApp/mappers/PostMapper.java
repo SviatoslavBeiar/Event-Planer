@@ -1,9 +1,12 @@
 package socialMediaApp.mappers;
 
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import socialMediaApp.models.Post;
 import socialMediaApp.requests.PostAddRequest;
+import socialMediaApp.requests.PostStatusUpdateRequest;
 import socialMediaApp.responses.post.PostGetResponse;
 
 import java.util.List;
@@ -29,4 +32,10 @@ public interface PostMapper {
 
 
     List<PostGetResponse> postsToGetResponses(List<Post> posts);
+
+
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(source = "status", target = "status")
+    void applyStatus(PostStatusUpdateRequest req, @MappingTarget Post post);
 }
