@@ -6,19 +6,18 @@ import {
     HStack, Badge, useToast
 } from '@chakra-ui/react';
 import TicketService from '../services/TicketService';
+import QrScannerModal from '../components/QrScannerModal';
 
 const MESSAGES = {
-    OK: 'The ticket is valid and ready for entry.',
-    CONSUMED: 'The ticket has been successfully consumed.',
-    FORBIDDEN: 'You are not authorized to verify this event.',
-    TICKET_NOT_FOUND: 'Ticket not found.',
-    TICKET_FOR_ANOTHER_EVENT: 'This ticket belongs to another event.',
-    TICKET_NOT_ACTIVE: 'Ticket is not active.',
+    OK: 'Ticket is valid and ready to enter',
+    CONSUMED: 'Ticket has been consumed',
+    FORBIDDEN: 'You are not allowed to verify this event',
+    TICKET_NOT_FOUND: 'Ticket not found',
+    TICKET_FOR_ANOTHER_EVENT: 'Ticket belongs to another event',
+    TICKET_NOT_ACTIVE: 'Ticket is not active',
 };
 
-function human(msg) {
-    return MESSAGES[msg] || msg || 'An unexpected error occurred.';
-}
+const human = (msg) => MESSAGES[msg] || msg || 'An error occurred';
 
 export default function VerifierApp() {
     const { postId } = useParams();
@@ -26,27 +25,41 @@ export default function VerifierApp() {
     const toast = useToast();
 
     const [code, setCode] = useState('');
-    const [res, setRes] = useState(null);   // TicketVerifyResponse or null
+    const [res, setRes] = useState(null);
     const [loading, setLoading] = useState(false);
     const [consuming, setConsuming] = useState(false);
     const [err, setErr] = useState('');
+    const [scanOpen, setScanOpen] = useState(false);
 
     const token = localStorage.getItem('token');
+
+    const parseQrText = (text) => {
+        // Підтримуємо "TICKET:<postId>:<code>" і просто "<code>"
+        try {
+            const s = String(text || '').trim().toUpperCase();
+            if (s.startsWith('TICKET:')) {
+                const parts = s.split(':'); // ["TICKET", "<POSTID>", "<CODE>"]
+                if (parts.length >= 3) {
+                    return { code: parts.slice(2).join(':'), qrPostId: Number(parts[1]) };
+                }
+            }
+            return { code: s, qrPostId: null };
+        } catch {
+            return { code: '', qrPostId: null };
+        }
+    };
 
     const onVerify = async () => {
         setErr('');
         setRes(null);
         const trimmed = (code || '').trim();
-        if (!trimmed) {
-            setErr('Please enter a ticket code.');
-            return;
-        }
+        if (!trimmed) { setErr('Enter ticket code'); return; }
         try {
             setLoading(true);
             const r = await svc.verifyValidate(Number(postId), trimmed, token);
             setRes(r.data);
         } catch (e) {
-            const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Verification failed.';
+            const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Verification error';
             setErr(msg);
         } finally {
             setLoading(false);
@@ -61,46 +74,75 @@ export default function VerifierApp() {
             setRes(r.data);
             const ok = r.data?.valid && r.data?.message === 'CONSUMED';
             toast({
-                title: ok ? 'Ticket consumed' : 'Not consumed',
+                title: ok ? 'Consumed' : 'Not consumed',
                 description: human(r.data?.message),
                 status: ok ? 'success' : 'error',
-                duration: 3000,
-                isClosable: true
+                duration: 3000, isClosable: true
             });
         } catch (e) {
-            const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Consumption failed.';
-            toast({
-                title: 'Error',
-                description: msg,
-                status: 'error',
-                duration: 4000,
-                isClosable: true
-            });
+            const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Consume error';
+            toast({ title: 'Error', description: msg, status: 'error', duration: 4000, isClosable: true });
         } finally {
             setConsuming(false);
         }
     };
 
-    const onKey = (e) => {
-        if (e.key === 'Enter') onVerify();
+    const onKey = (e) => { if (e.key === 'Enter') onVerify(); };
+
+    const handleDetected = async (qrText) => {
+        // закриваємо модалку, розбираємо пейлоад
+        setScanOpen(false);
+        const { code: parsedCode, qrPostId } = parseQrText(qrText);
+
+        if (!parsedCode) {
+            toast({ title: 'Invalid QR', status: 'error' });
+            return;
+        }
+
+        // Якщо у QR є postId і він інший — попереджаємо
+        if (qrPostId != null && qrPostId !== Number(postId)) {
+            toast({
+                title: 'QR for another event',
+                description: `QR says event #${qrPostId}, you are on #${postId}`,
+                status: 'warning', duration: 4000, isClosable: true
+            });
+            // все одно підставимо код — можливо, це перенос
+        }
+
+        setCode(parsedCode);
+        // Автоматично запускаємо валідацію
+        try {
+            setLoading(true);
+            const r = await svc.verifyValidate(Number(postId), parsedCode, token);
+            setRes(r.data);
+            if (!r.data?.valid) {
+                toast({ title: 'Invalid ticket', description: human(r.data?.message), status: 'error' });
+            }
+        } catch (e) {
+            const msg = e?.response?.data?.message || e?.response?.data || e?.message || 'Verification error';
+            setErr(msg);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <Box p={6} maxW="700px">
-            <Heading size="md" mb={4}>
-                Ticket verification for event #{postId}
-            </Heading>
+            <Heading size="md" mb={4}>Verify tickets for event #{postId}</Heading>
 
-            <Stack direction="row" spacing={3} mb={3}>
+            <Stack direction={{ base: 'column', sm: 'row' }} spacing={3} mb={3}>
                 <Input
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     onKeyDown={onKey}
-                    placeholder="Enter ticket code"
+                    placeholder="Enter or scan ticket code"
                     autoFocus
                 />
                 <Button colorScheme="pink" onClick={onVerify} isLoading={loading}>
                     Verify
+                </Button>
+                <Button variant="outline" onClick={() => setScanOpen(true)}>
+                    Scan QR
                 </Button>
             </Stack>
 
@@ -123,7 +165,7 @@ export default function VerifierApp() {
                                     <Badge>{res.code}</Badge>
                                     <Badge colorScheme="green">VALID</Badge>
                                 </HStack>
-                                {res.ownerFullName && <Text>Owner: {res.ownerFullName}</Text>}
+                                {res.ownerFullName && <Text>User: {res.ownerFullName}</Text>}
                                 {res.postTitle && <Text>Event: {res.postTitle}</Text>}
                                 <Text>{human(res.message)}</Text>
                             </Stack>
@@ -152,18 +194,18 @@ export default function VerifierApp() {
                         >
                             Consume (USED)
                         </Button>
-                        <Button
-                            variant="ghost"
-                            onClick={() => {
-                                setRes(null);
-                                setCode('');
-                            }}
-                        >
+                        <Button variant="ghost" onClick={() => { setRes(null); setCode(''); }}>
                             Clear
                         </Button>
                     </HStack>
                 </>
             )}
+
+            <QrScannerModal
+                isOpen={scanOpen}
+                onClose={() => setScanOpen(false)}
+                onDetected={handleDetected}
+            />
         </Box>
     );
 }

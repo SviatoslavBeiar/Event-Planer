@@ -52,6 +52,7 @@ public class TicketService {
     private final EventCheckerRepository eventCheckerRepository;
     private final EventCheckerService eventCheckerService;
 
+    private final MailService mailService;
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -87,9 +88,7 @@ public class TicketService {
 
     @Transactional
     public TicketResponse register(int postId, int userId) {
-        // Опціонально: щоб уникнути overbooking, можна підлокати пост:
-        // Post post = postService.getByIdForUpdate(postId); // PESSIMISTIC_WRITE
-        // і тоді далі робити перевірки/створення квитка
+
         Post post = postService.getById(postId);
         User user = userService.getById(userId);
 
@@ -113,7 +112,21 @@ public class TicketService {
         t.setCode(generateUniqueCode());
 
         ticketRepository.save(t);
+
+        try {
+            mailService.sendTicketEmail(t); // потім шлемо лист
+        } catch (Exception ex) {
+
+            // log.warn("Failed to send ticket email for ticket {}", t.getId(), ex);
+        }
+
         return ticketMapper.toResponse(t);
+    }
+    @Transactional(readOnly = true)
+    public void sendMyTicketEmail(int postId, int actorUserId) {
+        Ticket t = ticketRepository.findByPost_IdAndUser_Id(postId, actorUserId)
+                .orElseThrow(() -> new NotFoundException("Ticket not found"));
+        mailService.sendTicketEmail(t);
     }
 
     private String generateUniqueCode() {

@@ -13,7 +13,7 @@ import EventCheckerService from '../services/EventCheckerService'
 import CommentModal from '../components/CommentModal'
 import AuthContext from '../context/AuthContext'
 import EventCheckersPanel from './EventCheckersPanel'
-
+import QrTicketCard from '../components/QrTicketCard';
 function fmtDate(dt) {
     if (!dt) return ''
     try {
@@ -324,12 +324,21 @@ export default function PostDetails() {
                 {/* Керування чекерами — тільки для автора-організатора */}
                 {isMyEvent && <EventCheckersPanel postId={post.id} />}
 
+                {myTicket && (
+                    <>
+                        {/* ...тут твій блок REGISTERED і кнопка Copy... */}
+                        <QrTicketCard postId={post.id} ticketCode={myTicket?.code} />
+                    </>
+                )}
+
                 {/* Відкрити верифікатор — автор або призначений checker */}
                 {(isMyEvent || isChecker) && (
                     <Button as={Link} to={`/verify/${post.id}`} variant="outline">
                         Open Verifier
                     </Button>
                 )}
+
+
             </Stack>
         </Center>
     )

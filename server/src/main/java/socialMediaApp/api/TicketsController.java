@@ -11,6 +11,7 @@ import socialMediaApp.responses.ticket.TicketResponse;
 
 import socialMediaApp.services.CurrentUserService;
 import socialMediaApp.services.TicketService;
+import socialMediaApp.services.UserService;
 
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ public class TicketsController {
 
     private final TicketService ticketService;
     private final CurrentUserService current;
-
+    private final UserService userService;
     @GetMapping("/availability/{postId}")
     public ResponseEntity<Map<String, Object>> availability(@PathVariable int postId) {
         return ResponseEntity.ok(ticketService.availability(postId));
@@ -63,5 +64,11 @@ public class TicketsController {
                                                  Authentication auth) {
         String code = body.getOrDefault("code", "");
         return ResponseEntity.ok(ticketService.verifyAndUse(postId, code, current.requireUserId(auth)));
+    }
+
+    @PostMapping("/email/send/{postId}")
+    public ResponseEntity<Void> sendMyTicketEmail(@PathVariable int postId, Authentication auth) {
+        ticketService.sendMyTicketEmail(postId, current.requireUserId(auth));
+        return ResponseEntity.accepted().build();
     }
 }

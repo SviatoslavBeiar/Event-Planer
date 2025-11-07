@@ -44,7 +44,7 @@ public class AuthController {
         user.setName(registerRequest.getName());
         user.setLastName(registerRequest.getLastName());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        // роль з реквесту, або USER за замовчуванням
+
         user.setRole(registerRequest.getRole() != null ? registerRequest.getRole() : Role.USER);
 
         userRepository.save(user);
@@ -57,7 +57,7 @@ public class AuthController {
                 registerRequest.getEmail(),
                 user.getId(),
                 user.getName() + " " + user.getLastName(),
-                user.getRole().name() // NEW
+                user.getRole().name()
         );
         return new ResponseEntity<>(token, HttpStatus.OK);
     }
@@ -73,7 +73,7 @@ public class AuthController {
                     u.getEmail(),
                     u.getId(),
                     u.getName() + " " + u.getLastName(),
-                    u.getRole().name() // NEW
+                    u.getRole().name()
             );
             return new ResponseEntity<>(token, HttpStatus.OK);
         } catch (Exception e){
