@@ -46,8 +46,7 @@ Users can register for events, receive tickets, and participate in activities.
 
 ## 🌟 Future Enhancements
 
-- 🧾 **QR & PDF Ticket Generation** — automatically generate QR codes and downloadable PDF tickets  
-- 📧 **Email Delivery** — send tickets directly to users via email  
+- 🧾 **PDF Ticket Generation** — automatically generate QR codes and downloadable PDF tickets  
 - ✅ **Email Validation** — ensure valid user email addresses during registration  
 - 🔐 **OAuth 2.0 Authentication** — enable login via Google, Facebook, or other providers  
 - 🤖 **Machine Learning Integration** — analyze user behavior to identify interests and suggest personalized events  
