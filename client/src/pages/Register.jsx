@@ -72,14 +72,14 @@ function Register() {
                       position: 'absolute',
                       bottom: 1,
                       left: 0,
-                      bg: 'pink.500',
+                      bg: 'blue.500',
                       zIndex: -1,
                     }}>
-                  Spring-React
+                 Event Planer
                 </Text>
                 <br />{' '}
-                <Text color={'pink.500'} as={'span'}>
-                  Social Media App
+                <Text color={'blue.500'} as={'span'}>
+                 Spring && React
                 </Text>{' '}
               </Heading>
             </Stack>
@@ -148,15 +148,14 @@ function Register() {
                 <FormErrorMessage>{formik.errors.password}</FormErrorMessage>
               </FormControl>
               <FormControl>
-                <FormLabel>Я —</FormLabel>
                 <RadioGroup
                     name="role"
                     value={formik.values.role}
                     onChange={(val)=>formik.setFieldValue('role', val)}
                 >
                   <HStack spacing={6}>
-                    <Radio value="USER">Користувач</Radio>
-                    <Radio value="ORGANIZER">Органайзер</Radio>
+                    <Radio value="USER">USER</Radio>
+                    <Radio value="ORGANIZER">ORGANIZER</Radio>
                   </HStack>
                 </RadioGroup>
               </FormControl>

@@ -4,6 +4,7 @@ package socialMediaApp.responses.ticket;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import socialMediaApp.models.enums.TicketStatus;
 
 import java.time.LocalDateTime;
 
@@ -17,6 +18,6 @@ public class TicketResponse {
 
     private int userId;
     private String userFullName;
-
+    private TicketStatus status;
     private LocalDateTime createdAt;
 }

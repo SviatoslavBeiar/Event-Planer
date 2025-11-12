@@ -49,4 +49,12 @@ export default class TicketService {
     verifyConsume(postId, code, token) {
         return this.consume(postId, code, token);
     }
+
+    getMyPdf(postId, token) {
+        return axios.get(
+            process.env.REACT_APP_API + `tickets/my/${postId}/pdf`,
+            { headers: { Authorization: 'Bearer ' + token }, responseType: 'blob' }
+        );
+    }
+
 }

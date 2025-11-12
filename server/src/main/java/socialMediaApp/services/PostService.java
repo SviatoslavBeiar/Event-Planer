@@ -11,6 +11,7 @@ import socialMediaApp.mappers.PostMapper;
 import socialMediaApp.models.Post;
 import socialMediaApp.models.User;
 import socialMediaApp.models.enums.EventStatus;
+import socialMediaApp.models.enums.Role;
 import socialMediaApp.repositories.PostRepository;
 import socialMediaApp.requests.PostAddRequest;
 import socialMediaApp.responses.post.PostGetResponse;
@@ -36,6 +37,24 @@ public class PostService {
         int organizerId = userService.getByEmailEntity(organizerEmail).getId();
         return updateStatus(postId, organizerId, newStatus);
     }
+    @Transactional
+    public int addAsOrganizer(PostAddRequest request, String organizerEmail) {
+        User me = userService.getByEmailEntity(organizerEmail); // кине 404/NotFound якщо нема
+        if (me.getRole() != Role.ORGANIZER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ONLY_ORGANIZER_CAN_ADD");
+        }
+        return addForAuthor(request, me);
+    }
+
+    @Transactional
+    public int addForAuthor(PostAddRequest request, User author) {
+        Post post = postMapper.postAddRequestToPost(request);
+        // ігноруємо будь-який userId з фронта — завжди проставляємо свого
+        post.setUser(author);
+        postRepository.save(post);
+        return post.getId();
+    }
+
 
     @Transactional
     public PostGetResponse updateStatus(int postId, int organizerId, EventStatus newStatus) {

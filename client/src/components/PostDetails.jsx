@@ -327,7 +327,7 @@ export default function PostDetails() {
                 {myTicket && (
                     <>
                         {/* ...тут твій блок REGISTERED і кнопка Copy... */}
-                        <QrTicketCard postId={post.id} ticketCode={myTicket?.code} />
+                        <QrTicketCard postId={post.id} ticketCode={myTicket?.code} status={myTicket.status} />
                     </>
                 )}
 

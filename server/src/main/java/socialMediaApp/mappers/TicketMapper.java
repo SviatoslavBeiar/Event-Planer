@@ -16,6 +16,7 @@ public interface TicketMapper {
     @Mapping(source = "user.id", target = "userId")
     @Mapping(expression = "java(ticket.getUser().getName() + \" \" + ticket.getUser().getLastName())",
              target = "userFullName")
+    @Mapping(source = "status",    target = "status")
     TicketResponse toResponse(Ticket ticket);
 
     List<TicketResponse> toResponses(List<Ticket> tickets);

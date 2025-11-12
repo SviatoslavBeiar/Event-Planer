@@ -58,11 +58,11 @@ function Login() {
                   bg: 'pink.500',
                   zIndex: -1,
                 }}>
-                Spring-React
+                Event Planer
               </Text>
               <br />{' '}
               <Text color={'pink.500'} as={'span'}>
-                Social Media App
+                Spring && React
               </Text>{' '}
             </Heading>
           </Stack>

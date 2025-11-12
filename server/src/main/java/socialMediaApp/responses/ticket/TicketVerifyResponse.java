@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 
 @Data @NoArgsConstructor @AllArgsConstructor
 public class TicketVerifyResponse {
-    private boolean valid;           // чи валідний для цього івенту і активний
-    private String message;          // причина чому ні, або “OK”
+    private boolean valid;
+    private String message;
 
     private Integer ticketId;
     private String code;

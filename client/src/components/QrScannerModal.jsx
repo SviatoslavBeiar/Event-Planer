@@ -1,90 +1,70 @@
 // src/components/QrScannerModal.jsx
-import { useEffect, useRef } from 'react';
-import {
-    Modal, ModalOverlay, ModalContent, ModalHeader,
-    ModalCloseButton, ModalBody, Box, Text
-} from '@chakra-ui/react';
+import { useEffect, useRef, useId } from 'react';
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Box } from '@chakra-ui/react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function QrScannerModal({ isOpen, onClose, onDetected }) {
-    const regionIdRef = useRef(`qr-reader-${Math.random().toString(36).slice(2)}`);
-    const scannerRef = useRef(null);
-    const startingRef = useRef(false); // guard від подвійного старту
+    const html5Ref = useRef(null);
+    const runningRef = useRef(false);
+    const divId = useId(); // унікальний id для контейнера
+
+    const stopSafe = async () => {
+        const inst = html5Ref.current;
+        if (!inst) return;
+        try {
+            if (runningRef.current) {
+                await inst.stop();               // зупиняємо відеопотік, якщо реально працює
+            }
+        } catch (e) {
+            // ігноруємо типовий "Cannot stop, scanner is not running or paused."
+            // eslint-disable-next-line no-console
+            if (!String(e?.message || e).includes('scanner is not running')) console.warn(e);
+        }
+        try { await inst.clear(); } catch (_) {}
+        html5Ref.current = null;
+        runningRef.current = false;
+    };
+
+    const start = async () => {
+        await stopSafe(); // гарантуємо чистий старт
+        const elementId = `qr-reader-${divId}`;
+        const inst = new Html5Qrcode(elementId);
+        html5Ref.current = inst;
+        try {
+            await inst.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    runningRef.current = true;
+                    onDetected?.(decodedText);
+                },
+                // decode error callback — не показуємо в UI
+                () => {}
+            );
+            runningRef.current = true;
+        } catch (e) {
+            runningRef.current = false;
+            // eslint-disable-next-line no-console
+            console.error('QR start failed', e);
+            await stopSafe();
+        }
+    };
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (isOpen) start();
+        return () => { stopSafe(); };        // cleanup на розмонтування/закриття
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
-        let cancelled = false;
-
-        const waitForElement = async (id, tries = 40, delayMs = 50) => {
-            for (let i = 0; i < tries; i++) {
-                const el = document.getElementById(id);
-                if (el) return el;
-                await new Promise(r => setTimeout(r, delayMs));
-                if (cancelled) return null;
-            }
-            return null;
-        };
-
-        const start = async () => {
-            if (startingRef.current) return;
-            startingRef.current = true;
-
-            const id = regionIdRef.current;
-            const el = await waitForElement(id);
-            if (!el || cancelled) {
-                startingRef.current = false;
-                return;
-            }
-
-            const scanner = new Html5Qrcode(id);
-            scannerRef.current = scanner;
-
-            try {
-                await scanner.start(
-                    { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
-                    (decodedText /* , decodedResult */) => {
-                        // як тільки зчитали — віддаємо наверх і закриваємо модалку
-                        onDetected?.(decodedText);
-                    },
-                    () => {} // можна ігнорити помилки кадрів
-                );
-            } catch (e) {
-                console.error('QR start error', e);
-            } finally {
-                startingRef.current = false;
-            }
-        };
-
-        start();
-
-        return () => {
-            cancelled = true;
-            const s = scannerRef.current;
-            scannerRef.current = null;
-            startingRef.current = false;
-            if (s) {
-                // акуратно зупиняємо, щоб відпустити камеру
-                s.stop()
-                    .then(() => s.clear())
-                    .catch(() => {});
-            }
-        };
-    }, [isOpen, onDetected]);
-
+    // Щоб уникнути "Element not found" — контейнер має існувати ДО start()
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="md" isCentered>
+        <Modal isOpen={isOpen} onClose={async () => { await stopSafe(); onClose?.(); }}>
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>Scan ticket QR</ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
-                    {/* важливо: контейнер існує ДО старту сканера */}
-                    <Box id={regionIdRef.current} minH="260px" />
-                    <Text fontSize="xs" color="gray.500" mt={2}>
-                        Aim the camera at the QR code.
-                    </Text>
+                    <Box id={`qr-reader-${divId}`} w="100%" minH="280px" />
                 </ModalBody>
             </ModalContent>
         </Modal>

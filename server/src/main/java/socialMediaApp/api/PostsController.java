@@ -4,8 +4,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import socialMediaApp.models.Post;
 import socialMediaApp.models.User;
 import socialMediaApp.models.enums.Role;
 import socialMediaApp.repositories.UserRepository;
@@ -13,6 +15,7 @@ import socialMediaApp.requests.PostAddRequest;
 import socialMediaApp.requests.PostStatusUpdateRequest;
 import socialMediaApp.responses.post.PostGetResponse;
 import socialMediaApp.services.PostService;
+import socialMediaApp.services.UserService;
 
 import java.util.List;
 
@@ -20,11 +23,11 @@ import java.util.List;
 @RequestMapping("/api/posts")
 public class PostsController {
     private final PostService postService;
-    private final UserRepository userRepository;
 
-    public PostsController(PostService postService, UserRepository userRepository) {
+
+    public PostsController(PostService postService) {
         this.postService = postService;
-        this.userRepository = userRepository;
+
     }
 
     @GetMapping("/getall")
@@ -47,28 +50,19 @@ public class PostsController {
         return new ResponseEntity<>(postService.getByUserFollowing(userId),HttpStatus.OK);
     }
 
+
     @PostMapping("/add")
-    public ResponseEntity<Integer> add(@RequestBody PostAddRequest postAddRequest, Authentication auth){
-        User me = userRepository.findByEmail(auth.getName());
-        if (me == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-
-        if (me.getRole() != Role.ORGANIZER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ONLY_ORGANIZER_CAN_ADD");
-        }
-
-        // 🔒 ігноруємо userId з фронта — підставляємо свій
-        postAddRequest.setUserId(me.getId());
-
-        int postId = postService.add(postAddRequest);
-        return new ResponseEntity<>(postId,HttpStatus.CREATED);
+    public ResponseEntity<Integer> add(@RequestBody PostAddRequest request, Authentication auth) {
+        int postId = postService.addAsOrganizer(request, auth.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(postId);
     }
+
 
     @DeleteMapping("/delete")
     public ResponseEntity<String> delete(@RequestParam int id){
         postService.delete(id);
         return new ResponseEntity<>("Deleted",HttpStatus.OK);
     }
-
 
 
     @PutMapping("/{postId}/status")

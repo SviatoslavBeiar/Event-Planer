@@ -4,19 +4,26 @@ package socialMediaApp.services;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ByteArrayResource;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import socialMediaApp.models.Ticket;
 
 import javax.mail.internet.MimeMessage;
+import javax.mail.util.ByteArrayDataSource;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -25,16 +32,20 @@ import java.util.Map;
 public class MailService {
 
     private final JavaMailSender mailSender;
-
+    private String buildTicketPayload(Ticket t) {
+        return "TICKET:" + t.getPost().getId() + ":" + t.getCode().toUpperCase();
+    }
     public void sendTicketEmail(Ticket t) {
-        byte[] qr = generateQrPng(t.getCode());
+        String payload = buildTicketPayload(t);   // <-- TICKET:<postId>:<code>
+        byte[] qr  = generateQrPng(payload);
+        byte[] pdf = generateTicketPdf(t, qr);
         String cid = "qr-" + t.getCode();
 
         String html = """
-        <h2>Ticket for %s</h2>
-        <p><b>Code:</b> %s</p>
-        <img src="cid:%s" alt="QR code" width="220" height="220"/>
-        <p><i>If scanning fails, type the code manually.</i></p>
+            <h2>Ticket for %s</h2>
+            <p><b>Code:</b> %s</p>
+            <img src="cid:%s" alt="QR code" width="220" height="220"/>
+            <p><i>If scanning fails, type the code manually.</i></p>
         """.formatted(t.getPost().getTitle(), t.getCode(), cid);
 
         try {
@@ -52,9 +63,11 @@ public class MailService {
             helper.setText(html, true);
 
 
-            javax.mail.util.ByteArrayDataSource ds =
-                    new javax.mail.util.ByteArrayDataSource(qr, "image/png");
-            helper.addInline(cid, ds);
+            helper.addInline(cid, new ByteArrayDataSource(qr, "image/png"));
+
+
+            String fileName = "ticket-" + t.getCode() + ".pdf";
+            helper.addAttachment(fileName, new ByteArrayDataSource(pdf, "application/pdf"));
 
             mailSender.send(msg);
         } catch (Exception e) {
@@ -62,7 +75,85 @@ public class MailService {
         }
     }
 
+    private byte[] generateTicketPdf(Ticket t, byte[] qrPng) {
+        try (PDDocument doc = new PDDocument();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
+            PDPage page = new PDPage(PDRectangle.A6);
+            doc.addPage(page);
+
+            float w = page.getMediaBox().getWidth();
+            float h = page.getMediaBox().getHeight();
+            float margin = 18f;
+
+
+            float footerReserve = 26f;
+            float qrSize = 140f;
+            float qrX = (w - qrSize) / 2f;
+            float qrY = margin + footerReserve;
+
+            PDImageXObject qrImg = PDImageXObject.createFromByteArray(doc, qrPng, "qr.png");
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+
+                cs.setLineWidth(1.2f);
+                cs.addRect(margin / 2, margin / 2, w - margin, h - margin);
+                cs.stroke();
+
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA_BOLD, 16);
+                cs.newLineAtOffset(margin, h - margin - 14);
+                cs.showText("TICKET");
+                cs.endText();
+
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA_BOLD, 12);
+                cs.newLineAtOffset(margin, h - margin - 40);
+                cs.showText(safe(t.getPost().getTitle()));
+                cs.endText();
+
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA, 11);
+                cs.newLineAtOffset(margin, h - margin - 62);
+                cs.showText("Code: " + safe(t.getCode()));
+                cs.endText();
+
+                String owner = (safe(t.getUser().getName()) + " " + safe(t.getUser().getLastName())).trim();
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA, 11);
+                cs.newLineAtOffset(margin, h - margin - 80);
+                cs.showText("Owner: " + owner);
+                cs.endText();
+
+
+                if (t.getCreatedAt() != null) {
+                    String ts = t.getCreatedAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                    cs.beginText();
+                    cs.setFont(PDType1Font.HELVETICA, 10);
+                    cs.newLineAtOffset(margin, h - margin - 98);
+                    cs.showText("Issued: " + ts);
+                    cs.endText();
+                }
+
+
+                cs.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+                cs.beginText();
+                cs.setFont(PDType1Font.HELVETICA_OBLIQUE, 8.5f);
+                cs.newLineAtOffset(margin, margin + 10);
+                cs.showText("Present this ticket at entry. If scanning fails, type the code manually.");
+                cs.endText();
+            }
+
+            doc.save(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("PDF generation failed", e);
+        }
+    }
 
 
     private byte[] generateQrPng(String text) {
@@ -74,11 +165,14 @@ public class MailService {
             BitMatrix matrix = new MultiFormatWriter()
                     .encode(text, BarcodeFormat.QR_CODE, 280, 280, hints);
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
-            return out.toByteArray();
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                MatrixToImageWriter.writeToStream(matrix, "PNG", out);
+                return out.toByteArray();
+            }
         } catch (Exception e) {
             throw new IllegalStateException("QR generation failed", e);
         }
     }
+
+    private String safe(String s) { return s == null ? "" : s; }
 }
