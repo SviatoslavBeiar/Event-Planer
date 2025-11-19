@@ -9,6 +9,7 @@ import PostDetails from "./components/PostDetails";
 import MyTickets from "./pages/MyTickets";
 import VerifierApp from "./pages/VerifierApp";
 import VerifierHome from "./pages/VerifierHome";
+import PostAnalyticsPage from "./pages/PostAnalyticsPage";
 
 function App() {
   return (
@@ -22,8 +23,8 @@ function App() {
           <Route path="/post/:postId" element={<PostDetails />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/verify/:postId" element={<VerifierApp />} />
-          <Route path="/verify" element={<VerifierHome/>} />       {/* ✅ список/ввід івенту */}
-
+          <Route path="/verify" element={<VerifierHome/>} />
+          <Route path="/post/:postId/analytics" element={<PostAnalyticsPage />} />
           <Route path="/verify/:postId" element={<VerifierApp />} />
         </Routes>
       </AuthProvider>

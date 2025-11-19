@@ -14,6 +14,7 @@ import CommentModal from '../components/CommentModal'
 import AuthContext from '../context/AuthContext'
 import EventCheckersPanel from './EventCheckersPanel'
 import QrTicketCard from '../components/QrTicketCard';
+import AnalyticsPanel from "./AnalyticsPanel";
 function fmtDate(dt) {
     if (!dt) return ''
     try {
@@ -330,6 +331,11 @@ export default function PostDetails() {
                         <QrTicketCard postId={post.id} ticketCode={myTicket?.code} status={myTicket.status} />
                     </>
                 )}
+                {isMyEvent && (
+                    <Button as={Link} to={`/post/${post.id}/analytics`} variant="outline">
+                        Open Analytics
+                    </Button>
+                )}
 
                 {/* Відкрити верифікатор — автор або призначений checker */}
                 {(isMyEvent || isChecker) && (
@@ -338,7 +344,11 @@ export default function PostDetails() {
                     </Button>
                 )}
 
-
+                {isMyEvent && (
+                    <>
+                        <AnalyticsPanel postId={post.id} days={7} />
+                    </>
+                )}
             </Stack>
         </Center>
     )
