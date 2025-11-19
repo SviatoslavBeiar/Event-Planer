@@ -41,7 +41,8 @@ Users can register for events, receive tickets, and participate in activities.
 - ✅ Ticket verification by organizers and checkers  
 - 👥 Assign or revoke checkers by ID or email  
 - 🧾 Track event capacity and attendance
-
+- 🧾  automatically generate QR codes and downloadable PDF tickets  
+- 📧  send tickets directly to users via email  
 ---
 
 ## 🌟 Future Enhancements 
