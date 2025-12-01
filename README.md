@@ -49,5 +49,10 @@ Users can register for events, receive tickets, and participate in activities.
 - ✅ **Email Validation** — ensure valid user email addresses during registration  
 - 🔐 **OAuth 2.0 Authentication** — enable login via Google, Facebook, or other providers  
 - 🤖 **Machine Learning Integration** — analyze user behavior to identify interests and suggest personalized events  
-- 📍 **Nearby Events** — show events based on user’s current location or city  
+- 📍 **Nearby Events** — show events based on user’s current location or city
+  
+  ---
+## Graphical Diagram (ERD)
+The diagram below illustrates the database structure and the relationships between entities.
 
+<img width="1004" height="768" alt="image" src="https://github.com/user-attachments/assets/47b6031c-d642-45a6-8a31-b1ba212620b0" />
