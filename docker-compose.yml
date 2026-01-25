@@ -1,0 +1,88 @@
+
+services:
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    env_file: .env
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "9090:80"
+    depends_on:
+      - mysql
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: eventplaner-server
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD}
+
+      APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: eventplaner-client
+    ports:
+      - "3000:80"
+    # env_file залишаю, якщо ти хочеш інші змінні читати в контейнері,
+    # але для React build вони НЕ підставляються "на льоту" (тільки під час build)
+    env_file: .env
+    depends_on:
+      - server
+
+volumes:
+  mysql_data:
