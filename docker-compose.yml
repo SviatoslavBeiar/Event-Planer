@@ -78,8 +78,7 @@ services:
     container_name: eventplaner-client
     ports:
       - "3000:80"
-    # env_file залишаю, якщо ти хочеш інші змінні читати в контейнері,
-    # але для React build вони НЕ підставляються "на льоту" (тільки під час build)
+
     env_file: .env
     depends_on:
       - server
